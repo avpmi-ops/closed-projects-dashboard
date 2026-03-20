@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVPMi Closed Projects Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',-apple-system,sans-serif;background:#f0f4f8;color:#1e293b}
+
+/* Setup banner */
+.setup-banner{background:#fef3c7;border-bottom:2px solid #f59e0b;padding:10px 24px;display:flex;align-items:center;gap:12px;font-size:13px;color:#92400e}
+.setup-banner a{color:#b45309;font-weight:600;cursor:pointer}
+.setup-banner .setup-close{margin-left:auto;background:none;border:none;font-size:16px;cursor:pointer;color:#92400e;padding:0 4px}
+.setup-panel{background:#fffbeb;border-bottom:2px solid #f59e0b;padding:20px 32px;font-size:13px;color:#1e293b}
+.setup-panel h4{font-size:14px;font-weight:700;color:#92400e;margin-bottom:10px}
+.setup-steps{counter-reset:steps;list-style:none;padding:0}
+.setup-steps li{counter-increment:steps;padding:6px 0 6px 28px;position:relative;border-bottom:1px solid #fde68a}
+.setup-steps li:before{content:counter(steps);position:absolute;left:0;top:6px;background:#f59e0b;color:white;width:18px;height:18px;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.setup-steps code{background:#fde68a;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px}
+.setup-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* Header */
+.header{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);color:white;padding:18px 32px;display:flex;align-items:center;gap:16px}
+.header h1{font-size:22px;font-weight:700}
+.header p{font-size:13px;opacity:.8;margin-top:2px}
+.header-right{margin-left:auto;text-align:right;font-size:12px;opacity:.85;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.connect-btn{background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:.2s;white-space:nowrap}
+.connect-btn:hover{background:rgba(255,255,255,0.3)}
+.connect-btn.live{background:#16a34a;border-color:#16a34a}
+.connect-btn.loading{opacity:.6;cursor:wait}
+.data-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.data-badge.static{background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)}
+.data-badge.live{background:#16a34a;color:white}
+.data-badge.loading{background:#d97706;color:white}
+.pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Layout */
+.container{max-width:1400px;margin:0 auto;padding:24px 20px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi{background:white;border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,.08);border-left:4px solid #2563eb;transition:.3s}
+.kpi.green{border-left-color:#16a34a}.kpi.orange{border-left-color:#d97706}.kpi.purple{border-left-color:#7c3aed}
+.kpi-label{font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.kpi-value{font-size:28px;font-weight:800;color:#1e293b;margin-top:6px;line-height:1}
+.kpi-sub{font-size:12px;color:#94a3b8;margin-top:4px}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px}
+.card{background:white;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h3{font-size:14px;font-weight:700;color:#374151;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
+.chart-wrap{position:relative;height:260px}.chart-wrap-tall{position:relative;height:320px}
+.table-card{background:white;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:24px}
+.table-card h3{font-size:14px;font-weight:700;color:#374151;margin-bottom:14px}
+.search-input{width:100%;padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;margin-bottom:12px}
+.search-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f8fafc;padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid #f1f5f9;color:#334155}
+tr:hover td{background:#f8fafc}
+.val{font-weight:600;color:#1e293b}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-Self-Parking{background:#dbeafe;color:#1d4ed8}
+.badge-AVPMi-Valet,.badge-AVPMi_Valet{background:#dcfce7;color:#166534}
+.badge-Swyft-Valet,.badge-Swyft_Valet{background:#fef9c3;color:#854d0e}
+.badge-Access-Control,.badge-Access_Control{background:#f3e8ff;color:#6b21a8}
+.badge-LAZ{background:#ffedd5;color:#9a3412}
+.badge-Premium{background:#fce7f3;color:#9d174d}
+.badge-Custom,.badge-Unknown{background:#f1f5f9;color:#475569}
+.mix-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px}
+.mix-total{display:flex;justify-content:space-between;padding:10px 0;font-size:14px;font-weight:700;color:#2563eb}
+.footer{text-align:center;color:#94a3b8;font-size:12px;padding:20px}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:20px;right:20px;background:#1e293b;color:white;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:.3s;pointer-events:none;max-width:340px}
+.toast.show{opacity:1}
+.toast.error{background:#dc2626}
+.toast.success{background:#16a34a}
+</style>
+</head>
+<body>
+
+<!-- Setup banner — hidden once clientId is configured -->
+<div id="setupBanner" class="setup-banner" style="display:none">
+  <span>⚙️</span>
+  <span><strong>Currently showing static data from March 2026.</strong> &nbsp;
+  <a onclick="toggleSetup(); return false;" href="#">Click here for live data setup</a> to connect to your SharePoint list.</span>
+  <button class="setup-close" onclick="document.getElementById('setupBanner').style.display='none'">✕</button>
+</div>
+
+<!-- Collapsible setup panel -->
+<div id="setupPanel" class="setup-panel" style="display:none">
+  <div class="setup-row">
+    <div>
+      <h4>⚡ Step 1 — Register Azure AD App (2 min)</h4>
+      <ol class="setup-steps">
+        <li>Go to <code>portal.azure.com</code> → <strong>Azure Active Directory</strong> → <strong>App registrations</strong></li>
+        <li>Click <strong>+ New registration</strong> → Name: <code>AVPMi Dashboard</code></li>
+        <li>Account type: <strong>Single tenant</strong></li>
+        <li>Platform: <strong>Single-page application (SPA)</strong><br>Redirect URI: <code>http://localhost:8080</code></li>
+        <li>Click <strong>Register</strong> → Copy the <strong>Application (client) ID</strong></li>
+        <li>Under <strong>API permissions</strong> → Add → SharePoint → Delegated → <code>AllSites.Read</code></li>
+        <li>Click <strong>Grant admin consent</strong></li>
+      </ol>
+    </div>
+    <div>
+      <h4>🔧 Step 2 — Configure this dashboard (1 min)</h4>
+      <ol class="setup-steps">
+        <li>Open this HTML file in a text editor</li>
+        <li>Find the line: <code>clientId: "",</code></li>
+        <li>Paste your Application (client) ID between the quotes</li>
+        <li>Save the file</li>
+      <li>Run from terminal: <code>python -m http.server 8080</code> in the same folder</li>
+        <li>Open: <code>http://localhost:8080/AVPMi_Closed_Projects_Dashboard.html</code></li>
+        <li>Click <strong>Connect Live Data</strong> in the header</li>
+      </ol>
+      <p style="margin-top:10px;padding:8px;background:#fde68a;border-radius:6px;font-size:12px">
+        💡 <strong>For CEO/CFO access:</strong> Upload this file to your SharePoint document library after setup. Set the Redirect URI to that SharePoint URL. They'll auto-authenticate with their M365 accounts.
+      </p>
+    </div>
+  </div>
+  <button onclick="toggleSetup()" style="margin-top:14px;background:#f59e0b;color:white;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">Close Instructions ▲</button>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <h1>&#128202; AVPMi &middot; Closed Projects Dashboard</h1>
+    <p id="headerSub">Historical archive &mdash; PandaDoc exports &amp; CRM data &middot; 2023&ndash;2025</p>
+  </div>
+  <div class="header-right">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="dataBadge" class="data-badge static">&#9898; Static Data</span>
+      <button id="connectBtn" class="connect-btn" onclick="connectLiveData()">&#128279; Connect Live Data</button>
+    </div>
+    <div id="lastUpdated">Last updated: March 2026</div>
+    <div id="projectCount">147 projects</div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-label">Total Contract Value</div>
+    <div class="kpi-value" id="kpiTotal">$2.08M</div>
+    <div class="kpi-sub" id="kpiTotalSub">Across 147 closed projects</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-label">Avg. Deal Size</div>
+    <div class="kpi-value" id="kpiAvg">$14,159</div>
+    <div class="kpi-sub">Per project</div>
+  </div>
+  <div class="kpi orange">
+    <div class="kpi-label">Largest Project Type</div>
+    <div class="kpi-value" id="kpiTopType">Self-Parking</div>
+    <div class="kpi-sub" id="kpiTopTypeSub">$859K &middot; 22 projects</div>
+  </div>
+  <div class="kpi purple">
+    <div class="kpi-label">Top Sales Rep</div>
+    <div class="kpi-value" id="kpiTopRep" style="font-size:20px">Luigi Lissa</div>
+    <div class="kpi-sub" id="kpiTopRepSub">$1,044K &middot; 71 projects</div>
+  </div>
+</div>
+
+<!-- Row 1: Type + Year -->
+<div class="chart-grid">
+  <div class="card"><h3>&#128188; Revenue by Project Type</h3><div class="chart-wrap"><canvas id="typeChart"></canvas></div></div>
+  <div class="card"><h3>&#128197; Projects &amp; Revenue by Year</h3><div class="chart-wrap"><canvas id="yearChart"></canvas></div></div>
+</div>
+
+<!-- Row 2: Rep + Client -->
+<div class="chart-grid">
+  <div class="card"><h3>&#128100; Sales Rep Performance</h3><div class="chart-wrap-tall"><canvas id="repChart"></canvas></div></div>
+  <div class="card"><h3>&#127970; Top Clients by Revenue</h3><div class="chart-wrap-tall"><canvas id="clientChart"></canvas></div></div>
+</div>
+
+<!-- Row 3: State + Type Count + Mix -->
+<div class="chart-grid-3">
+  <div class="card"><h3>&#128506; Revenue by State</h3><div class="chart-wrap"><canvas id="stateChart"></canvas></div></div>
+  <div class="card"><h3>&#128202; Project Count by Type</h3><div class="chart-wrap"><canvas id="typeCountChart"></canvas></div></div>
+  <div class="card"><h3>&#128161; Project Mix</h3><div id="mixList"></div></div>
+</div>
+
+<!-- Top Projects Table -->
+<div class="table-card">
+  <h3>&#128203; Top Projects by Contract Value</h3>
+  <input class="search-input" id="search" placeholder="Search by title, client, rep, state..." oninput="filterTable()">
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>PandaDoc #</th><th>Project Title</th><th>Client</th><th>Type</th><th>Value</th><th>Sales Rep</th><th>State</th><th>Year</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<div class="footer" id="footer">AVPMi Closed Projects &middot; 147 projects &middot; $2,081,402 total contract value &middot; Data as of March 2026</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+const MSAL_CONFIG = {
+  clientId: "85de8e7e-29c5-402b-8604-8483b569d8e5",
+  authority: "https://login.microsoftonline.com/avpmi.com",
+  redirectUri: (window.location.protocol === "file:" ? "http://localhost:8080" : window.location.href.split(/[?#]/)[0]),
+  cacheLocation: "sessionStorage"
+};
+
+const SP_SITE    = "https://avpm-my.sharepoint.com/personal/robert_edgar_avpmi_com";
+const SP_LIST    = "Closed Projects";
+const SP_FIELDS  = "Project_Title,Client_Name,Project_Type,Contract_Value,Sales_Rep,State,Contract_Signed_Date,PandaDoc_Number";
+const SP_SCOPES  = [`${SP_SITE}/AllSites.Read`];
+
+const STATIC = {
+  total:147, contractTotal:2081402,
+  byType:{labels:["Self-Parking","Access Control","AVPMi Valet","Swyft Valet","Unknown","LAZ","Premium","Custom"],values:[859145,468452,382227,121512,113140,110501,16297,10128],counts:[22,6,41,36,3,31,5,3]},
+  byYear:{labels:["2023","2024","2025","2026"],values:[88347,466056,886741,164105],counts:[12,20,84,18]},
+  byRep:{labels:["Luigi Lissa","Ken Shin","Alger Salazar a.","Rodrigo Munoz","Luigi Lssa","Bruno Faria","Bruno Farias","Luig Lissa"],values:[1043601,874748,73762,63424,7500,5472,4830,4315],counts:[71,47,1,14,1,3,1,1]},
+  byClient:{labels:["Hilton LAX","Boca Raton – Emp.","Stanford Health Care","ARAMARK","Encore Boston Harbor","Seminole Transportation","BAHAMAR","Arizona Biltmore","Newport Beachside Hotel","Laz Parking"],values:[338683,302724,212307,157229,89057,88903,81774,73762,70001,53751]},
+  byState:{labels:["FL","CA","TX","N/A","AZ","MA","NJ","LA"],values:[717428,606084,214124,141285,107889,89557,68881,27389]},
+  topProjects:[
+    {n:"P-4205",title:"Hilton Los Angeles Airport Valet & Self-Pa",client:"Hilton LAX",type:"Self-Parking",value:338683,rep:"Ken Shin",state:"CA",year:"2024"},
+    {n:"P-5057",title:"Employees and Members Parking Enhancements",client:"Boca Raton – Employee and Me",type:"Access Control",value:302724,rep:"Luigi Lissa",state:"FL",year:"N/A"},
+    {n:"P-5087",title:"Request #1 - SHC RWC Free Standing Garage",client:"Stanford Health Care",type:"AVPMi Valet",value:165561,rep:"Ken Shin",state:"CA",year:"2025"}]}55,rep:"Ken Shin",state:"MA",year:"2025"},
+    {n:"P-4978",title:"New Pay Station & EMV Credit Card Conversi",client:"Arizona Biltmore / Pyramid G",type:"Self-Parking",value:34127,rep:"Ken Shin",state:"AZ",year:"2025"},
+    {n:"P-4987",title:"Service Level Agreement (SLA) and AVPM",client:"Hard Rock Atlantic City",type:"Self-Parking",value:34000,rep:"Luigi Lissa",state:"NJ",year:"2024"},
+    {n:"P-5124",title:"Request #2 - SHC RWC Free Standing Garage",client:"Stanford Health Care",type:"Self-Parking",value:31994,rep:"Ken Shin",state:"CA",year:"2025"},
+    {n:"P-4236",title:"Advanced Pro Services - Valet Enhancement",client:"Advanced Pro Services",type:"AVPMi Valet",value:30117,rep:"Luigi Lissa",state:"FL",year:"2023"},
+    {n:"P-5408",title:"Self Parking Solution - Newport",client:"Newport Beachside Hotel & Re",type:"Self-Parking",value:26891,rep:"Luigi Lissa",state:"FL",year:"N/A"},
+    {n:"P-4295",title:"Access Control Solution - The Elser",client:"VPNE Parking Solutions",type:"Access Control",value:25163,rep:"Luigi Lissa",state:"FL",year:"2023"},
+    {n:"P-5205",title:"W Hollywood Argyle Residential AVI",client:"W Residences Hollywood",type:"LAZ",value:22690,rep:"Ken Shin",state:"CA",year:"2025"},
+    {n:"P-5018",title:"Valet Self-Serve Kiosk",client:"Encore Boston Harbor",type:"AVPMi Valet",value:21845,rep:"Ken Shin",state:"MA",year:"2025"},
+    {n:"P-5461",title:"Zachry Park Hotel QOZB, LLC",client:"Zachry Park Hotel QOZB, LLC",type:"Self-Parking",value:20170,rep:"Luigi Lissa",state:"TX",year:"2026"},
+    {n:"P-5112",title:"Unity Card Arrivals System Development",client:"Hard Rock Hotel & Casino Atl",type:"Self-Parking",value:19800,rep:"Luigi Lissa",state:"NJ",year:"2025"},
+    {n:"P-5118",title:"Lot A - Existing Inventory Hardware & Inst",client:"Encore Boston Harbor",type:"Access Control",value:18562,rep:"Ken Shin",state:"MA",year:"2025"},
+    {n:"P-5098",title:"The Ben, Autograph Collection",client:"The Ben, Autograph Collectio",type:"AVPMi Valet",value:18174,rep:"Luigi Lissa",state:"FL",year:"N/A"},
+    {n:"P-4404",title:"Costa Hotel - Parts",client:"777 N Ocean Drive",type:"Self-Parking",value:15840,rep:"Luigi Lissa",state:"FL",year:"2024"},
+    {n:"P-5137",title:"Baha Mar Barrier Gates",client:"BAHAMAR",type:"AVPMi Valet",value:13349,rep:"Rodrigo Munoz",state:"N/A",year:"2025"},
+    {n:"P-5306",title:"Brown Palace & Holiday Inn, Denver",client:"Laz Parking",type:"LAZ",value:12880,rep:"Ken Shin",state:"CO",year:"2026"},
+    {n:"P-5495",title:"Valet Solution Proposal",client:"AC Marriott Beverly Hills",type:"AVPMi Valet",value:12735,rep:"Ken Shin",state:"CA",year:"2026"},
+    {n:"P-5350",title:"Quote For MCiquina de Vendas Ventures",client:"MCiquina de Vendas Ventures",type:"Swyft Valet",value:12173,rep:"Luigi Lissa",state:"N/A",year:"2025"},
+    {n:"P-4436",title:"Yellow Green Market TIM and TICO machines",client:"Yellow Green Market",type:"Self-Parking",value:12069,rep:"Rodrigo Munoz",state:"FL",year:"2024"},
+    {n:"P-5319",title:"Hyatt Galleria & Hyatt Place",client:"PMSI",type:"Swyft Valet",value:11244,rep:"Luigi Lissa",state:"TX",year:"2025"},
+    {n:"P-5399",title:"Mercy Hospital",client:"Premium Parking",type:"Swyft Valet",value:10485,rep:"Ken Shin",state:"LA",year:"2025"}
+  ]
+};
+
+const COLORS = ["#1a3a6b","#dc2626","#16a34a","#d97706","#7c3aed","#0891b2","#be185d","#65a30d","#0f766e","#7e22ce"];
+const CHARTS = {};
+function fmtK(v){return '$'+Math.round(v/1000)+'K';}
+function fmtM(v){return v>=1000000?'$'+(v/1000000).toFixed(2)+'M':'$'+(v/1000).toFixed(0)+'K';}
+function fmtFull(v){return '$'+v.toLocaleString();}
+function buildCharts(d){Object.values(CHARTS).forEach(c=>{try{c.destroy();}catch(e){}});
+  CHARTS.type=new Chart(document.getElementById('typeChart'),{type:'doughnut',data:{labels:d.byType.labels,datasets:[{data:d.byType.values,backgroundColor:COLORS,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},padding:10,boxWidth:12}},tooltip:{callbacks:{label:c=>' '+c.label+': '+fmtK(c.raw)}}}}});
+  CHARTS.year=new Chart(document.getElementById('yearChart'),{data:{labels:d.byYear.labels,datasets:[{type:'bar',label:'Contract Value',data:d.byYear.values,backgroundColor:'#2563eb',yAxisID:'y',borderRadius:6},{type:'line',label:'Projects',data:d.byYear.counts,borderColor:'#d97706',yAxisID:'y2',tension:.4,pointRadius:5,fill:false}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{position:'left',ticks:{callback:v=>fmtK(v),font:{size:10}}},y2:{position:'right',grid:{drawOnChartArea:false},ticks:{font:{size:10}}}}}});
+  CHARTS.rep=new Chart(document.getElementById('repChart'),{type:'bar',data:{labels:d.byRep.labels,datasets:[{label:'Revenue',data:d.byRep.values,backgroundColor:'#1a3a6b',borderRadius:4},{label:'Projects',data:d.byRep.counts,backgroundColor:'#60a5fa',borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{callback:v=>fmtK(v),font:{size:10}}}}}});
+  CHARTS.client=new Chart(document.getElementById('clientChart'),{type:'bar',data:{labels:d.byClient.labels,datasets:[{label:'Value',data:d.byClient.values,backgroundColor:COLORS,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>fmtK(v),font:{size:10}}}}}});
+  CHARTS.state=new Chart(document.getElementById('stateChart'),{type:'bar',data:{labels:d.byState.labels,datasets:[{label:'Revenue',data:d.byState.values,backgroundColor:'#7c3aed',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmtK(v),font:{size:10}}}}}});
+  CHARTS.typeCount=new Chart(document.getElementById('typeCountChart'),{type:'pie',data:{labels:d.byType.labels,datasets:[{data:d.byType.counts,backgroundColor:COLORS,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},padding:8,boxWidth:10}}}}});}
+function buildMixList(d){const el=document.getElementById('mixList');let html='';for(let i=0;i<d.byType.labels.length;i++){html+=`<div class="mix-row"><span style="color:#64748b">${d.byType.labels[i]}</span><span style="font-weight:700">${d.byType.counts[i]} projects</span></div>`;}const total=d.byType.counts.reduce((a,b)=>a+b,0);html+=`<div class="mix-total"><span>TOTAL</span><span>${total} projects</span></div>`;el.innerHTML=html;}
+function buildTable(projects){const tbody=document.getElementById('tableBody');let rows='';projects.forEach(p=>{const bkey=(p.type||'Unknown').replace(/\s+/g,'-').replace(/_/g,'-');rows+=`<tr><td>${p.n||''}</td><td>${(p.title||'').substring(0,42)}</td><td>${(p.client||'').substring(0,30)}</td><td><span class="badge badge-${bkey}">${p.type||'Unknown'}</span></td><td class="val">${fmtFull(p.value||0)}</td><td>${p.rep||''}</td><td>${p.state||'N/A'}</td><td>${p.year||'N/A'}</td></tr>`;});tbody.innerHTML=rows;}
+function buildKPIs(d){const total=d.contractTotal;const count=d.total;document.getElementById('kpiTotal').textContent=fmtM(total);document.getElementById('kpiTotalSub').textContent=`Across ${count} closed projects`;document.getElementById('kpiAvg').textContent='$'+Math.round(total/count).toLocaleString();document.getElementById('projectCount').textContent=count+' projects';const maxTypeIdx=d.byType.values.indexOf(Math.max(...d.byType.values));
+  document.getElementById('kpiTopType').textContent=d.byType.labels[maxTypeIdx];
+  document.getElementById('kpiTopTypeSub').textContent=fmtK(d.byType.values[maxTypeIdx])+' · '+d.byType.counts[maxTypeIdx]+' projects';
+  const maxRepIdx=d.byRep.values.indexOf(Math.max(...d.byRep.values));
+  document.getElementById('kpiTopRep').textContent=d.byRep.labels[maxRepIdx];
+  document.getElementById('kpiTopRepSub').textContent=fmtK(d.byRep.values[maxRepIdx])+' · '+d.byRep.counts[maxRepIdx]+' projects';}
+
+function renderDashboard(d,isLive){buildKPIs(d);buildCharts(d);buildMixList(d);buildTable(d.topProjects||[]);const now=new Date();const stamp=now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});document.getElementById('lastUpdated').textContent=isLive?'Live · Refreshed '+stamp:'Last updated: March 2026';document.getElementById('footer').textContent=`AVPMi Closed Projects · ${d.total} projects · ${fmtFull(d.contractTotal)} total contract value · ${isLive?'Live data · Refreshed '+stamp:'Data as of March 2026'}`;document.getElementById('headerSub').textContent=isLive?'Live data — SharePoint Closed Projects list · Auto-synced':'Historical archive — PandaDoc exports & CRM data · 2023–2025';}
+
+function aggregateItems(items){const byType={},byYear={},byRep={},byClient={},byState={};let total=0;
+  items.forEach(item=>{const val=parseFloat(item.Contract_Value)||0;const type=(item.Project_Type||'Unknown').trim();const rep=(item.Sales_Rep||'Unknown').trim();const client=(item.Client_Name||'Unknown').trim();const state=(item.State||'N/A').trim();let year='N/A';if(item.Contract_Signed_Date){const y=new Date(item.Contract_Signed_Date).getFullYear();if(!isNaN(y))year=String(y);}total+=val;
+    byType[type]=byType[type]||{v:0,c:0};byType[type].v+=val;byType[type].c++;
+    byRep[rep]=byRep[rep]||{v:0,c:0};byRep[rep].v+=val;byRep[rep].c++;
+    byClient[client]=byClient[client]||{v:0,c:0};byClient[client].v+=val;byClient[client].c++;
+    byState[state]=byState[state]||{v:0,c:0};byState[state].v+=val;byState[state].c++;
+    byYear[year]=byYear[year]||{v:0,c:0};byYear[year].v+=val;byYear[year].c++;});
+  function sortedPairs(obj,n){return Object.entries(obj).sort((a,b)=>b[1].v-a[1].v).slice(0,n||999);}
+  const typePairs=sortedPairs(byType),repPairs=sortedPairs(byRep,10),clientPairs=sortedPairs(byClient,10),statePairs=sortedPairs(byState,10),yearPairs=Object.entries(byYear).filter(e=>e[0]!=='N/A').sort((a,b)=>a[0].localeCompare(b[0]));
+  const topProjects=[...items].sort((a,b)=>(b.Contract_Value||0)-(a.Contract_Value||0)).slice(0,50).map(item=>{let year='N/A';if(item.Contract_Signed_Date){const y=new Date(item.Contract_Signed_Date).getFullYear();if(!isNaN(y))year=String(y);}return{n:item.PandaDoc_Number||'',title:item.Project_Title||item.Title||'',client:item.Client_Name||'',type:item.Project_Type||'Unknown',value:parseFloat(item.Contract_Value)||0,rep:item.Sales_Rep||'',state:item.State||'N/A',year};});
+  return{total:items.length,contractTotal:Math.round(total),byType:{labels:typePairs.map(p=>p[0]),values:typePairs.map(p=>Math.round(p[1].v)),counts:typePairs.map(p=>p[1].c)},byYear:{labels:yearPairs.map(p=>p[0]),values:yearPairs.map(p=>Math.round(p[1].v)),counts:yearPairs.map(p=>p[1].c)},byRep:{labels:repPairs.map(p=>p[0]),values:repPairs.map(p=>Math.round(p[1].v)),counts:repPairs.map(p=>p[1].c)},byClient:{labels:clientPairs.map(p=>p[0].substring(0,25)),values:clientPairs.map(p=>Math.round(p[1].v))},byState:{labels:statePairs.map(p=>p[0]),values:statePairs.map(p=>Math.round(p[1].v))},topProjects};}
+
+let msalInstance=null;
+async function initMSAL(){if(!MSAL_CONFIG.clientId)return null;try{const instance=new msal.PublicClientApplication({auth:{clientId:MSAL_CONFIG.clientId,authority:MSAL_CONFIG.authority,redirectUri:MSAL_CONFIG.redirectUri},cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:false}});await instance.initialize();return instance;}catch(e){console.warn('MSAL init failed:',e);return null;}}
+async function fetchAllSPItems(token){const headers={Authorization:'Bearer '+token,Accept:'application/json;odata=nometadata'};let url=`${SP_SITE}/_api/web/lists/getbytitle('${SP_LIST}')/items?$select=${SP_FIELDS}&$top=500&$orderby=Contract_Value desc`;let allItems=[];while(url){const resp=await fetch(url,{headers});if(!resp.ok)throw new Error(`SharePoint API ${resp.status}: ${resp.statusText}`);const data=await resp.json();allItems=allItems.concat(data.value||[]);url=data['odata.nextLink']||null;}return allItems;}
+async function connectLiveData(){if(!MSAL_CONFIG.clientId){toggleSetup();showToast('Set up Azure AD first — see instructions above.','error');return;}setConnectState('loading');try{if(!msalInstance)msalInstance=await initMSAL();if(!msalInstance)throw new Error('MSAL failed to initialize.');let account=msalInstance.getAllAccounts()[0];let tokenResp;if(account){try{tokenResp=await msalInstance.acquireTokenSilent({scopes:SP_SCOPES,account});}catch(e){tokenResp=await msalInstance.acquireTokenPopup({scopes:SP_SCOPES});}}else{tokenResp=await msalInstance.acquireTokenPopup({scopes:SP_SCOPES});}setConnectState('fetching');showToast('Fetching live data from SharePoint...','');const items=await fetchAllSPItems(tokenResp.accessToken);const d=aggregateItems(items);renderDashboard(d,true);setConnectState('live');showToast(`✓ Live data loaded — ${d.total} projects from SharePoint`,'success');}catch(e){console.error('Live data error:',e);setConnectState('static');showToast('Connection failed: '+e.message,'error');}}
+function setConnectState(state){const btn=document.getElementById('connectBtn');const badge=document.getElementById('dataBadge');if(state==='loading'||state==='fetching'){btn.innerHTML='<span class="spinner"></span>'+(state==='fetching'?'Loading data...':'Signing in...');btn.className='connect-btn loading';badge.className='data-badge loading';badge.innerHTML='<span class="pulse"></span> Connecting...';}else if(state==='live'){btn.innerHTML='&#10004; Live &mdash; Refresh';btn.className='connect-btn live';badge.className='data-badge live';badge.innerHTML='<span class="pulse"></span> Live Data';document.getElementById('setupBanner').style.display='none';}else{btn.innerHTML='&#128279; Connect Live Data';btn.className='connect-btn';badge.className='data-badge static';badge.innerHTML='&#9898; Static Data';}}
+function filterTable(){const q=document.getElementById('search').value.toLowerCase();document.querySelectorAll('#tableBody tr').forEach(r=>{r.style.display=r.textContent.toLowerCase().includes(q)?'' : 'none';
+  });
+}
+function toggleSetup(){const p=document.getElementById('setupPanel');p.style.display=p.style.display==='none'?'block':'none';}
+let toastTimer;
+function showToast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show'+(type?' '+type:'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='toast',3500);}
+(async function init(){renderDashboard(STATIC,false);if(MSAL_CONFIG.clientId){document.getElementById('setupBanner').style.display='none';msalInstance=await initMSAL();if(msalInstance){const accounts=msalInstance.getAllAccounts();if(accounts.length>0){try{setConnectState('fetching');const tokenResp=await msalInstance.acquireTokenSilent({scopes:SP_SCOPES,account:accounts[0]});const items=await fetchAllSPItems(tokenResp.accessToken);renderDashboard(aggregateItems(items),true);setConnectState('live');showToast(`✓ Auto-refreshed — ${aggregateItems(items).total} live projects`,'success');}catch(e){setConnectState('static');}}}}
+})();
+</script>
+</body>
+</html>
