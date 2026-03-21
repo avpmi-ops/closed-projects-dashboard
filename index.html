@@ -213,7 +213,7 @@ const MSAL_CONFIG = {
 
 const SP_SITE    = "https://avpm-my.sharepoint.com/personal/robert_edgar_avpmi_com";
 const SP_LIST    = "AVPMi Closed Projects";
-const SP_FIELDS  = "Project_Title,Client_Name,Project_Type,Contract_Value,Sales_Rep,State,Contract_Signed_Date,PandaDoc_Number";
+const SP_FIELDS  = "Title,Client_Operator,Project_Type,Contract_Value,Sales_Rep,State,Contract_Signed_Date,PandaDoc_Number";
 const SP_SCOPES  = ["https://avpm-my.sharepoint.com/AllSites.Read"];
 
 const STATIC = {
@@ -281,7 +281,7 @@ function buildKPIs(d){const total=d.contractTotal;const count=d.total;document.g
 function renderDashboard(d,isLive){buildKPIs(d);buildCharts(d);buildMixList(d);buildTable(d.topProjects||[]);const now=new Date();const stamp=now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});document.getElementById('lastUpdated').textContent=isLive?'Live · Refreshed '+stamp:'Last updated: March 2026';document.getElementById('footer').textContent=`AVPMi Closed Projects · ${d.total} projects · ${fmtFull(d.contractTotal)} total contract value · ${isLive?'Live data · Refreshed '+stamp:'Data as of March 2026'}`;document.getElementById('headerSub').textContent=isLive?'Live data — SharePoint Closed Projects list · Auto-synced':'Historical archive — PandaDoc exports & CRM data · 2023–2025';}
 
 function aggregateItems(items){const byType={},byYear={},byRep={},byClient={},byState={};let total=0;
-  items.forEach(item=>{const val=parseFloat(item.Contract_Value)||0;const type=(item.Project_Type||'Unknown').trim();const rep=(item.Sales_Rep||'Unknown').trim();const client=(item.Client_Name||'Unknown').trim();const state=(item.State||'N/A').trim();let year='N/A';if(item.Contract_Signed_Date){const y=new Date(item.Contract_Signed_Date).getFullYear();if(!isNaN(y))year=String(y);}total+=val;
+  items.forEach(item=>{const val=parseFloat(item.Contract_Value)||0;const type=(item.Project_Type||'Unknown').trim();const rep=(item.Sales_Rep||'Unknown').trim();const client=(item.Client_Operator||'Unknown').trim();const state=(item.State||'N/A').trim();let year='N/A';if(item.Contract_Signed_Date){const y=new Date(item.Contract_Signed_Date).getFullYear();if(!isNaN(y))year=String(y);}total+=val;
     byType[type]=byType[type]||{v:0,c:0};byType[type].v+=val;byType[type].c++;
     byRep[rep]=byRep[rep]||{v:0,c:0};byRep[rep].v+=val;byRep[rep].c++;
     byClient[client]=byClient[client]||{v:0,c:0};byClient[client].v+=val;byClient[client].c++;
@@ -289,7 +289,7 @@ function aggregateItems(items){const byType={},byYear={},byRep={},byClient={},by
     byYear[year]=byYear[year]||{v:0,c:0};byYear[year].v+=val;byYear[year].c++;});
   function sortedPairs(obj,n){return Object.entries(obj).sort((a,b)=>b[1].v-a[1].v).slice(0,n||999);}
   const typePairs=sortedPairs(byType),repPairs=sortedPairs(byRep,10),clientPairs=sortedPairs(byClient,10),statePairs=sortedPairs(byState,10),yearPairs=Object.entries(byYear).filter(e=>e[0]!=='N/A').sort((a,b)=>a[0].localeCompare(b[0]));
-  const topProjects=[...items].sort((a,b)=>(b.Contract_Value||0)-(a.Contract_Value||0)).slice(0,50).map(item=>{let year='N/A';if(item.Contract_Signed_Date){const y=new Date(item.Contract_Signed_Date).getFullYear();if(!isNaN(y))year=String(y);}return{n:item.PandaDoc_Number||'',title:item.Project_Title||item.Title||'',client:item.Client_Name||'',type:item.Project_Type||'Unknown',value:parseFloat(item.Contract_Value)||0,rep:item.Sales_Rep||'',state:item.State||'N/A',year};});
+  const topProjects=[...items].sort((a,b)=>(b.Contract_Value||0)-(a.Contract_Value||0)).slice(0,50).map(item=>{let year='N/A';if(item.Contract_Signed_Date){const y=new Date(item.Contract_Signed_Date).getFullYear();if(!isNaN(y))year=String(y);}return{n:item.PandaDoc_Number||'',title:item.Title||item.Title||'',client:item.Client_Operator||'',type:item.Project_Type||'Unknown',value:parseFloat(item.Contract_Value)||0,rep:item.Sales_Rep||'',state:item.State||'N/A',year};});
   return{total:items.length,contractTotal:Math.round(total),byType:{labels:typePairs.map(p=>p[0]),values:typePairs.map(p=>Math.round(p[1].v)),counts:typePairs.map(p=>p[1].c)},byYear:{labels:yearPairs.map(p=>p[0]),values:yearPairs.map(p=>Math.round(p[1].v)),counts:yearPairs.map(p=>p[1].c)},byRep:{labels:repPairs.map(p=>p[0]),values:repPairs.map(p=>Math.round(p[1].v)),counts:repPairs.map(p=>p[1].c)},byClient:{labels:clientPairs.map(p=>p[0].substring(0,25)),values:clientPairs.map(p=>Math.round(p[1].v))},byState:{labels:statePairs.map(p=>p[0]),values:statePairs.map(p=>Math.round(p[1].v))},topProjects};}
 
 let msalInstance=null;
